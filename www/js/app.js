@@ -17,17 +17,11 @@ MapApp.config(['$stateProvider', '$urlRouterProvider', function($stateProvider, 
 /**
  * HEADER - handle menu toggle
  */
-MapApp.controller('HeaderCtrl', function($scope) {
+MapApp.controller('HeaderCtrl', function($rootScope, $ionicSideMenuDelegate) {
   // Main app controller, empty for the example
-  $scope.leftButtons = [
-    {
-    type: 'button-clear',
-    content: '<i class="icon ion-navicon"></i>',
-    tap: function(e) {
-      $scope.sideMenuController.toggleLeft();
-      }
-    }
-  ];
+  $rootScope.openSideMenu = function() {
+    $ionicSideMenuDelegate.toggleLeft();
+  }
 });
 
 /**
@@ -70,10 +64,11 @@ MapApp.controller('GpsCtrl', ['$scope','$ionicPlatform', '$location',
 
       // some points of interest to show on the map
       // to be user as markers, objects should have "lat", "lon", and "name" properties
-      $scope.whoiswhere = [
-        { "name": "My Marker", "lat": $scope.barranquilla.lat, "lon": $scope.barranquilla.lon },
-      ];
-
+      $scope.$apply(function(){
+        $scope.whoiswhere = [
+          { "name": "My Marker", "lat": $scope.barranquilla.lat, "lon": $scope.barranquilla.lon },
+        ];
+      })
     });
 
 }]);
