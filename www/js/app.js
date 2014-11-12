@@ -32,20 +32,25 @@ MapApp.config(['$stateProvider', '$urlRouterProvider', '$httpProvider',
 /**
  * Service used to find nearby touristic places.
  */
- MapApp.factory('GpsService', ['$http', function($http){
+ MapApp.factory('GpsService', ['$http', '$timeout', function($http, $timeout){
 
   return {
 
     goTo: function(touristicPlaceName){
       this.clearMap()
 
-      var touristicPlace = this.find(touristicPlaceName)
-      if(touristicPlace){
-        currentMarkers.push(touristicPlace)
-        map.panTo(touristicPlace.position) //Center to the touristic place.
-      } else {
-        alert('El sitio turistico no fue encontrado')
-      }
+      this.find(touristicPlaceName)
+      $timeout(function(){
+        if(currentMarkers && currentMarkers.length > 0){
+          var latlngbounds = new google.maps.LatLngBounds();
+          currentMarkers.forEach(function(marker){
+            latlngbounds.extend(marker.position)
+          })
+          map.fitBounds(latlngbounds)
+        } else {
+          alert('El sitio turistico no fue encontrado')
+        }
+      }, 500)
     },
 
     clearMap: function(){
@@ -59,26 +64,24 @@ MapApp.config(['$stateProvider', '$urlRouterProvider', '$httpProvider',
     // entered by the user. Then it will return a google marker with the
     // place's location and name if found or null otherwise.
     find: function(touristicPlaceName) {
-      $http.jsonp('http://ejer-topicos01.azurewebsites.net/api/sitios/Montoya?callback=JSON_CALLBACK')
-      .then(function(data){
+      var nearbyPlaces;
+      $http({
+        method: 'GET',
+        url:'http://ejer-topicos01.azurewebsites.net/api/sitios/'+touristicPlaceName
+      })
+      .success(function(data){
+        data =  data.substring(1, data.length - 1).replace(/\\"/g, '"')
+        nearbyPlaces = angular.fromJson(data);
+        if(nearbyPlaces){
+          nearbyPlaces.forEach(function(nearbyPlace){
+            var location = new google.maps.LatLng(nearbyPlace.Latitud, nearbyPlace.Longitud);
+            currentMarkers.push(new google.maps.Marker({ position: location, map: map, title: nearbyPlace.Nombre }));
+          })
+        }
+      })
+      .error(function(data){
         console.log(data)
       });
-      // Here we try to match if the touristicPlaceName
-      // matches any of the in memory places name.
-      var touristicPlaceSearched = undefined
-      inMemoryPlaces.forEach(function(touristicPlace){
-          if(touristicPlace.name.indexOf(touristicPlaceName) > -1){
-            touristicPlaceSearched = touristicPlace
-          }
-        }
-      );
-
-      if(touristicPlaceSearched){
-        var location = new google.maps.LatLng(touristicPlaceSearched.lat, touristicPlaceSearched.lon);
-        return new google.maps.Marker({ position: location, map: map, title: touristicPlaceSearched.name });
-      }
-
-      return undefined
     }
   }
 
