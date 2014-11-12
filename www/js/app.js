@@ -1,27 +1,94 @@
 'use strict';
 var MapApp = angular.module('MapApp', ['ionic']);
+var map;
+var currentMarkers;
+// This is an in memory touristic places data, just to
+    // to make a proof of concept of the GpsService.
+var inMemoryPlaces = [
+    {"name": "Amira De La Rosa", "lat": 10.993027, "lon": -74.789386}
+];
+
+function say_response(data){
+  console.log(data)
+}
+
 
 /**
  * Routing table including associated controllers.
  */
-MapApp.config(['$stateProvider', '$urlRouterProvider', function($stateProvider, $urlRouterProvider) {
-  $stateProvider
-    .state('menu', {url: "/map", abstract: true, templateUrl: "menu.html"})
-    .state('menu.home', {url: '/home', views: {'menuContent': {templateUrl: 'gpsView.html', controller: 'GpsCtrl'} }  })
-    .state('menu.help', {url: '/help', views: {'menuContent': {templateUrl: 'helpView.html', controller: 'HelpCtrl'} }  });
+MapApp.config(['$stateProvider', '$urlRouterProvider', '$httpProvider',
+  function($stateProvider, $urlRouterProvider, $httpProvider) {
+    $stateProvider
+      .state('menu', {url: "/map", abstract: true, templateUrl: "menu.html"})
+      .state('menu.home', {url: '/home', views: {'menuContent': {templateUrl: 'gpsView.html', controller: 'GpsCtrl'} }  })
 
-  // if none of the above states are matched, use this as the fallback
-  $urlRouterProvider.otherwise('/map/home');
-}]);
+    // if none of the above states are matched, use this as the fallback
+    $urlRouterProvider.otherwise('/map/home');
+    $httpProvider.defaults.useXDomain = true
+    delete $httpProvider.defaults.headers.common['X-Requested-With']
+  }
+]);
+
+/**
+ * Service used to find nearby touristic places.
+ */
+ MapApp.factory('GpsService', ['$http', function($http){
+
+  return {
+
+    goTo: function(touristicPlaceName){
+      this.clearMap()
+
+      var touristicPlace = this.find(touristicPlaceName)
+      if(touristicPlace){
+        currentMarkers.push(touristicPlace)
+        map.panTo(touristicPlace.position) //Center to the touristic place.
+      } else {
+        alert('El sitio turistico no fue encontrado')
+      }
+    },
+
+    clearMap: function(){
+      currentMarkers.forEach(function(marker){
+        marker.setMap(null);
+      });
+      currentMarkers = []
+    },
+
+    // This function finds a touristic place which matches the input name
+    // entered by the user. Then it will return a google marker with the
+    // place's location and name if found or null otherwise.
+    find: function(touristicPlaceName) {
+      $http.jsonp('http://ejer-topicos01.azurewebsites.net/api/sitios/Montoya?callback=JSON_CALLBACK')
+      .then(function(data){
+        console.log(data)
+      });
+      // Here we try to match if the touristicPlaceName
+      // matches any of the in memory places name.
+      var touristicPlaceSearched = undefined
+      inMemoryPlaces.forEach(function(touristicPlace){
+          if(touristicPlace.name.indexOf(touristicPlaceName) > -1){
+            touristicPlaceSearched = touristicPlace
+          }
+        }
+      );
+
+      if(touristicPlaceSearched){
+        var location = new google.maps.LatLng(touristicPlaceSearched.lat, touristicPlaceSearched.lon);
+        return new google.maps.Marker({ position: location, map: map, title: touristicPlaceSearched.name });
+      }
+
+      return undefined
+    }
+  }
+
+ }]);
 
 /**
  * HEADER - handle menu toggle
  */
-MapApp.controller('HeaderCtrl', function($rootScope, $ionicSideMenuDelegate) {
+MapApp.controller('HeaderCtrl', function() {
   // Main app controller, empty for the example
-  $rootScope.openSideMenu = function() {
-    $ionicSideMenuDelegate.toggleLeft();
-  }
 });
 
 /**
@@ -34,8 +101,20 @@ MapApp.controller('MainCtrl', ['$scope', function($scope) {
 /**
  * A google map / GPS controller.
  */
-MapApp.controller('GpsCtrl', ['$scope','$ionicPlatform', '$location',
-  function($scope, $ionicPlatform, $location) {
+MapApp.controller('GpsCtrl', ['$scope','$ionicPlatform', '$location', 'GpsService',
+  function($scope, $ionicPlatform, $location, GpsService) {
+
+    $scope.searchNearbyTouristicPlaces = function(){
+      //Remove the markers from the previous search.
+      currentMarkers.forEach(function(marker){ marker.setMap(null); });
+      currentMarkers = []
+
+      // Append the new markers.
+      // var amiraDeLaRosa = {"name": "Amira De La Rosa", "lat": 10.993027, "lon": -74.789386}
+      // var loc = new google.maps.LatLng(amiraDeLaRosa.lat, amiraDeLaRosa.lon);
+      // var mm = new google.maps.Marker({ position: loc, map: map, title: amiraDeLaRosa.name });
+      GpsService.goTo($scope.currentPlace)
+    }
 
   // init gps array
     $scope.whoiswhere = [];
@@ -71,13 +150,6 @@ MapApp.controller('GpsCtrl', ['$scope','$ionicPlatform', '$location',
       })
     });
 
-}]);
-
-/**
- * MAIN CONTROLLER - handle inapp browser
- */
-MapApp.controller('HelpCtrl', ['$scope', function($scope) {
-  // do something
 }]);
 
 // formats a number as a latitude (e.g. 40.46... => "40°27'44"N")
@@ -145,9 +217,7 @@ MapApp.directive("appMap", function ($window) {
         },
         link: function (scope, element, attrs) {
             var toResize, toCenter;
-            var map;
             var infowindow;
-            var currentMarkers;
             var callbackName = 'InitMapCb';
 
         // callback when google maps is loaded
@@ -204,7 +274,7 @@ MapApp.directive("appMap", function ($window) {
 
       scope.$watch('markers', function() {
         updateMarkers();
-        });
+      });
 
       // Info window trigger function
       function onItemClick(pin, label, datum, url) {

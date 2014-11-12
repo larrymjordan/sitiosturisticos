@@ -1,1 +1,8 @@
 /* Empty. Add your own CSS if you like */
+input[type="text"]{
+  width: 230px;
+  padding: 0 7px;
+  -webkit-border-radius: 5px;
+  -moz-border-radius: 5px;
+  border-radius: 5px;
+}
