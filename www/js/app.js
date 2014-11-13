@@ -64,7 +64,7 @@ MapApp.config(['$stateProvider', '$urlRouterProvider', '$httpProvider',
         } else {
           alert('El sitio turistico no fue encontrado')
         }
-      }, 1000)
+      }, 2000)
     },
 
     clearMap: function(){
