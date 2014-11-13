@@ -214,7 +214,7 @@ MapApp.directive("appMap", function ($window) {
     return {
         restrict: "E",
         replace: true,
-        template: "<div></div>",
+        template: "<div data-tap-disabled='true'></div>",
         scope: {
             center: "=",        // Center point on the map (e.g. <code>{ latitude: 10, longitude: 10 }</code>).
             markers: "=",       // Array of map markers (e.g. <code>[{ lat: 10, lon: 10, name: "hello" }]</code>).
