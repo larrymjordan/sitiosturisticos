@@ -2,16 +2,30 @@
 var MapApp = angular.module('MapApp', ['ionic']);
 var map;
 var currentMarkers;
-// This is an in memory touristic places data, just to
-    // to make a proof of concept of the GpsService.
-var inMemoryPlaces = [
-    {"name": "Amira De La Rosa", "lat": 10.993027, "lon": -74.789386}
-];
+var infowindow;
 
-function say_response(data){
-  console.log(data)
+// Info window trigger function
+function onItemClick(pin, label, datum, url) {
+  // Create content
+  var contentString = "<b>Nombre:</b> " + label + "<br /><b>Sitios Cercanos: </b>" + datum;
+  // Replace our Info Window's content and position
+  infowindow.setContent(contentString);
+  infowindow.setPosition(pin.position);
+  infowindow.open(map)
+  google.maps.event.addListener(infowindow, 'closeclick', function() {
+    //console.log("map: info windows close listener triggered ");
+    infowindow.close();
+  });
 }
 
+function markerCb(marker, member, location) {
+  return function() {
+    //console.log("map: marker listener for " + member.name);
+    var href="http://maps.apple.com/?q=" + member.Latitud + "," + member.Longitud;
+    map.setCenter(location);
+    onItemClick(marker, member.Nombre, member.Cercanos, href);
+  };
+}
 
 /**
  * Routing table including associated controllers.
@@ -50,7 +64,7 @@ MapApp.config(['$stateProvider', '$urlRouterProvider', '$httpProvider',
         } else {
           alert('El sitio turistico no fue encontrado')
         }
-      }, 500)
+      }, 1000)
     },
 
     clearMap: function(){
@@ -75,7 +89,9 @@ MapApp.config(['$stateProvider', '$urlRouterProvider', '$httpProvider',
         if(nearbyPlaces){
           nearbyPlaces.forEach(function(nearbyPlace){
             var location = new google.maps.LatLng(nearbyPlace.Latitud, nearbyPlace.Longitud);
-            currentMarkers.push(new google.maps.Marker({ position: location, map: map, title: nearbyPlace.Nombre }));
+            var marker   = new google.maps.Marker({ position: location, map: map, title: nearbyPlace.Nombre })
+            google.maps.event.addListener(marker, 'click', markerCb(marker, nearbyPlace, location));
+            currentMarkers.push(marker);
           })
         }
       })
@@ -108,14 +124,6 @@ MapApp.controller('GpsCtrl', ['$scope','$ionicPlatform', '$location', 'GpsServic
   function($scope, $ionicPlatform, $location, GpsService) {
 
     $scope.searchNearbyTouristicPlaces = function(){
-      //Remove the markers from the previous search.
-      currentMarkers.forEach(function(marker){ marker.setMap(null); });
-      currentMarkers = []
-
-      // Append the new markers.
-      // var amiraDeLaRosa = {"name": "Amira De La Rosa", "lat": 10.993027, "lon": -74.789386}
-      // var loc = new google.maps.LatLng(amiraDeLaRosa.lat, amiraDeLaRosa.lon);
-      // var mm = new google.maps.Marker({ position: loc, map: map, title: amiraDeLaRosa.name });
       GpsService.goTo($scope.currentPlace)
     }
 
@@ -148,7 +156,7 @@ MapApp.controller('GpsCtrl', ['$scope','$ionicPlatform', '$location', 'GpsServic
       // to be user as markers, objects should have "lat", "lon", and "name" properties
       $scope.$apply(function(){
         $scope.whoiswhere = [
-          { "name": "My Marker", "lat": $scope.barranquilla.lat, "lon": $scope.barranquilla.lon },
+          { "Nombre": "Barranquilla", "lat": $scope.barranquilla.lat, "lon": $scope.barranquilla.lon },
         ];
       })
     });
@@ -220,7 +228,6 @@ MapApp.directive("appMap", function ($window) {
         },
         link: function (scope, element, attrs) {
             var toResize, toCenter;
-            var infowindow;
             var callbackName = 'InitMapCb';
 
         // callback when google maps is loaded
@@ -279,29 +286,6 @@ MapApp.directive("appMap", function ($window) {
         updateMarkers();
       });
 
-      // Info window trigger function
-      function onItemClick(pin, label, datum, url) {
-        // Create content
-        var contentString = "Name: " + label + "<br />Time: " + datum;
-        // Replace our Info Window's content and position
-        infowindow.setContent(contentString);
-        infowindow.setPosition(pin.position);
-        infowindow.open(map)
-        google.maps.event.addListener(infowindow, 'closeclick', function() {
-          //console.log("map: info windows close listener triggered ");
-          infowindow.close();
-          });
-        }
-
-      function markerCb(marker, member, location) {
-          return function() {
-          //console.log("map: marker listener for " + member.name);
-          var href="http://maps.apple.com/?q="+member.lat+","+member.lon;
-          map.setCenter(location);
-          onItemClick(marker, member.name, member.date, href);
-          };
-        }
-
       // update map markers to match scope marker collection
       function updateMarkers() {
         if (map && scope.markers) {
@@ -317,9 +301,9 @@ MapApp.directive("appMap", function ($window) {
             //console.log("map: make marker for " + m.name);
             google.maps.event.addListener(mm, 'click', markerCb(mm, m, loc));
             currentMarkers.push(mm);
-            }
           }
         }
+      }
 
       // convert current location to Google maps location
       function getLocation(loc) {
